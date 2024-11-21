@@ -1,0 +1,759 @@
+<html><head><base href="." /><title>Snake Game - Classic & Campaign</title>
+<style>
+:root {
+  --snake-green: #4CAF50;
+  --dark-green: #2E7D32;
+  --apple-red: #f44336;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #1a1a1a;
+  color: white;
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+#tech-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: linear-gradient(to bottom, #000510, #001020);
+  overflow: hidden;
+}
+
+.grid-line {
+  position: absolute;
+  background: rgba(0, 200, 255, 0.15);
+}
+
+.horizontal-line {
+  width: 100%;
+  height: 2px;
+  animation: scanLine 12s linear infinite;
+  box-shadow: 0 0 15px rgba(0, 200, 255, 0.3);
+}
+
+.vertical-line {
+  width: 2px;
+  height: 100%;
+  animation: scanVertical 18s linear infinite;
+  box-shadow: 0 0 15px rgba(0, 200, 255, 0.3);
+}
+
+.circuit-node {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #00ffc8;
+  border-radius: 50%;
+  box-shadow: 0 0 15px #00ffc8;
+}
+
+.circuit-path {
+  position: absolute;
+  background: rgba(0, 255, 200, 0.2);
+  height: 2px;
+  animation: circuitPulse 4s linear infinite;
+}
+
+.robotic-component {
+  position: absolute;
+  border: 2px solid rgba(0, 200, 255, 0.3);
+  border-radius: 5px;
+  animation: componentPulse 3s ease-in-out infinite;
+}
+
+@keyframes circuitPulse {
+  0% { opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+
+@keyframes componentPulse {
+  0% { box-shadow: 0 0 5px rgba(0, 200, 255, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(0, 200, 255, 0.5); }
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes scanVertical {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes dataFall {
+  0% { 
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  50% { opacity: 0.8; }
+  100% { 
+    transform: translateY(1000%);
+    opacity: 0;
+  }
+}
+
+.data-stream {
+  position: absolute;
+  color: #00ff88;
+  font-family: monospace;
+  font-size: 14px;
+  animation: dataFall 8s linear forwards;
+  text-shadow: 0 0 5px #00ff88;
+  pointer-events: none;
+}
+
+.circuit-node.active {
+  background: #00ffff;
+  transform: scale(1.5);
+  transition: all 0.3s ease;
+}
+
+.circuit-path.active {
+  background: rgba(0, 255, 255, 0.8);
+  box-shadow: 0 0 10px #00ffff;
+  transition: all 0.3s ease;
+}
+
+.game-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin: 20px;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px;
+}
+
+#game-container {
+  position: relative;
+}
+
+#game-canvas {
+  border: 2px solid var(--snake-green);
+  background: #000;
+  width: 400px;
+  height: 400px;
+}
+
+.btn {
+  background: var(--snake-green);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin: 5px;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+.btn:hover {
+  background: var(--dark-green);
+}
+
+#score {
+  font-size: 24px;
+  margin: 10px;
+}
+
+#level {
+  font-size: 20px;
+  color: var(--snake-green);
+  margin: 10px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #333;
+  padding: 20px;
+  border-radius: 10px;
+  z-index: 100;
+  text-align: center;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 99;
+}
+
+.pause-overlay {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.snake-segment {
+  animation: rainbow 5s linear infinite;
+}
+
+.start-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  color: #00ff88;
+  text-align: center;
+}
+
+.start-screen h2 {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px #00ff88;
+}
+
+.start-screen p {
+  font-size: 1.2em;
+  margin: 10px 0;
+  color: #fff;
+}
+
+.control-guide {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 10px;
+  border: 1px solid #00ff88;
+}
+
+.control-guide div {
+  margin: 10px 0;
+  font-family: monospace;
+}
+
+.start-btn {
+  font-size: 1.5em;
+  padding: 15px 40px;
+  background: #00ff88;
+  color: black;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.start-btn:hover {
+  background: #00cc6a;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+}
+</style>
+</head>
+<body>
+<div id="tech-background"></div>
+<h1>Snake Game</h1>
+<div id="start-screen" class="start-screen">
+  <h2>Welcome to Cyber Snake</h2>
+  <p>Navigate the robotic snake through a technological maze.</p>
+  <p>Use arrow keys to move. Space to pause.</p>
+  <div class="control-guide">
+    <div>↑ Up</div>
+    <div>↓ Down</div>
+    <div>← Left</div>
+    <div>→ Right</div>
+    <div>Space - Pause</div>
+  </div>
+  <button class="btn start-btn" onclick="hideStartScreen()">Start Game</button>
+</div>
+<div class="game-wrapper" style="display: none;">
+  <div>
+    <div id="score">Score: 0</div>
+    <div id="level">Level: 1</div>
+    <div id="game-container">
+      <canvas id="game-canvas" width="400" height="400"></canvas>
+      <div id="pause-overlay" class="pause-overlay">PAUSED</div>
+    </div>
+  </div>
+  <div class="menu">
+    <button class="btn" onclick="startGame('classic')">Classic Mode</button>
+    <button class="btn" onclick="startGame('campaign')">Campaign Mode</button>
+  </div>
+</div>
+<div class="overlay" id="overlay"></div>
+<div class="modal" id="modal">
+  <h2 id="modal-text">Game Over!</h2>
+  <button class="btn" onclick="closeModal()">Play Again</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
+
+let snake = [];
+let speed = 5; // Initial speed set lower for gradual increases
+let dx = 0;
+let dy = 0;
+let apple = { x: 0, y: 0 };
+let score = 0;
+let level = 1;
+let gameMode = 'classic';
+let gameLoop = null;
+let isPaused = false;
+const pauseOverlay = document.getElementById('pause-overlay');
+let particles = [];
+
+class Particle {
+  constructor(x, y, color) {
+    this.x = x;
+    this.y = y;
+    this.size = gridSize/2;
+    this.color = color;
+    this.alpha = 1;
+    this.decay = 0.05;
+  }
+
+  update() {
+    this.alpha -= this.decay;
+    this.size -= 0.2;
+    return this.alpha <= 0 || this.size <= 0;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function startGame(mode) {
+  document.getElementById('start-screen').style.display = 'none';
+  gameMode = mode;
+  snake = [
+    { x: 5, y: 5 },
+  ];
+  speed = mode === 'classic' ? 5 : 4; // Set initial speed lower to accommodate incremental increases
+  level = 1;
+  score = 0;
+  dx = 0;
+  dy = 0;
+  isPaused = false;
+  pauseOverlay.style.display = 'none';
+  particles = [];
+  updateScore();
+  updateLevel();
+  placeApple();
+  if (gameLoop) clearInterval(gameLoop);
+  gameLoop = setInterval(gameUpdate, 1000/speed);
+}
+
+function togglePause() {
+  isPaused = !isPaused;
+  if (isPaused) {
+    clearInterval(gameLoop);
+    pauseOverlay.style.display = 'flex';
+  } else {
+    gameLoop = setInterval(gameUpdate, 1000/speed);
+    pauseOverlay.style.display = 'none';
+  }
+}
+
+function gameUpdate() {
+  if (dx === 0 && dy === 0 || isPaused) return;
+  
+  const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+  
+  const snakeScreenX = (head.x * gridSize + gridSize/2) / canvas.width * 100;
+  const snakeScreenY = (head.y * gridSize + gridSize/2) / canvas.height * 100;
+  
+  window.circuitNodes?.forEach(node => {
+    const nodeX = parseFloat(node.style.left);
+    const nodeY = parseFloat(node.style.top);
+    const distance = Math.hypot(nodeX - snakeScreenX, nodeY - snakeScreenY);
+    
+    if (distance < 15) {
+      node.classList.add('active');
+      window.circuitPaths?.forEach(path => {
+        const pathX = parseFloat(path.style.left);
+        const pathY = parseFloat(path.style.top);
+        const pathDistance = Math.hypot(pathX - nodeX, pathY - nodeY);
+        if (pathDistance < 20) {
+          path.classList.add('active');
+        }
+      });
+    } else {
+      node.classList.remove('active');
+    }
+  });
+  
+  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+    gameOver();
+    return;
+  }
+  
+  for (let i = 0; i < snake.length; i++) {
+    if (head.x === snake[i].x && head.y === snake[i].y) {
+      gameOver();
+      return;
+    }
+  }
+  
+  snake.unshift(head);
+  
+  if (head.x === apple.x && head.y === apple.y) {
+    score += 10;
+    updateScore();
+    
+    // Increase speed when eating food
+    speed += 0.5; // Gradual speed increase
+    clearInterval(gameLoop);
+    gameLoop = setInterval(gameUpdate, 1000/speed);
+    
+    // Check for level up every 5 food items (50 points)
+    if (gameMode === 'campaign' && score % 50 === 0) {
+      levelUp();
+    }
+    placeApple();
+  } else {
+    snake.pop();
+  }
+  
+  draw();
+}
+
+function levelUp() {
+  level++;
+  updateLevel();
+  // Add speed bonus for level up
+  speed += 0.5;
+  clearInterval(gameLoop);
+  gameLoop = setInterval(gameUpdate, 1000/speed);
+  
+  // Create level up particles effect
+  for (let i = 0; i < 20; i++) {
+    particles.push(new Particle(
+      snake[0].x * gridSize + gridSize/2,
+      snake[0].y * gridSize + gridSize/2,
+      `hsl(${Math.random() * 360}, 100%, 50%)`
+    ));
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  for (let i = 1; i < snake.length; i++) {
+    const hue = (i * 25 + performance.now() / 50) % 360;
+    
+    ctx.fillStyle = `hsl(${hue}, 50%, 60%)`;
+    ctx.beginPath();
+    ctx.arc(
+      snake[i].x * gridSize + gridSize/2, 
+      snake[i].y * gridSize + gridSize/2, 
+      (gridSize - 4)/2, 
+      0, 
+      Math.PI * 2
+    );
+    ctx.fill();
+    
+    const gradient = ctx.createLinearGradient(
+      snake[i].x * gridSize,
+      snake[i].y * gridSize,
+      snake[i].x * gridSize + gridSize,
+      snake[i].y * gridSize + gridSize
+    );
+    gradient.addColorStop(0, 'rgba(255,255,255,0.2)');
+    gradient.addColorStop(0.5, 'rgba(120,120,120,0.2)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0.2)');
+    ctx.fillStyle = gradient;
+    ctx.arc(
+      snake[i].x * gridSize + gridSize/2,
+      snake[i].y * gridSize + gridSize/2,
+      (gridSize - 4)/2,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    
+    ctx.strokeStyle = 'rgba(0,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(
+      snake[i].x * gridSize + gridSize/2,
+      snake[i].y * gridSize + gridSize/2,
+      (gridSize - 6)/2,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+    
+    ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+    ctx.shadowBlur = 5;
+    ctx.beginPath();
+    ctx.arc(
+      snake[i].x * gridSize + gridSize/2,
+      snake[i].y * gridSize + gridSize/2,
+      2,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  
+  const head = snake[0];
+  ctx.fillStyle = '#888';
+  
+  ctx.beginPath();
+  ctx.arc(
+    head.x * gridSize + gridSize/2,
+    head.y * gridSize + gridSize/2,
+    (gridSize - 2)/2,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+  
+  const headGradient = ctx.createLinearGradient(
+    head.x * gridSize,
+    head.y * gridSize,
+    head.x * gridSize + gridSize,
+    head.y * gridSize + gridSize
+  );
+  headGradient.addColorStop(0, 'rgba(255,255,255,0.4)');
+  headGradient.addColorStop(0.5, 'rgba(120,120,120,0.2)');
+  headGradient.addColorStop(1, 'rgba(255,255,255,0.4)');
+  ctx.fillStyle = headGradient;
+  ctx.fill();
+  
+  ctx.fillStyle = '#00ffff';
+  ctx.shadowColor = '#00ffff';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(head.x * gridSize + 8, head.y * gridSize + 8, 3, 0, Math.PI * 2);
+  ctx.arc(head.x * gridSize + gridSize - 8, head.y * gridSize + 8, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  
+  ctx.strokeStyle = 'rgba(0,255,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(head.x * gridSize + 4, head.y * gridSize + gridSize - 4);
+  ctx.lineTo(head.x * gridSize + gridSize - 4, head.y * gridSize + gridSize - 4);
+  ctx.stroke();
+  
+  ctx.strokeStyle = 'rgba(0,255,255,0.3)';
+  ctx.beginPath();
+  ctx.moveTo(head.x * gridSize + 6, head.y * gridSize + 6);
+  ctx.lineTo(head.x * gridSize + 10, head.y * gridSize + 6);
+  ctx.moveTo(head.x * gridSize + gridSize - 6, head.y * gridSize + 6);
+  ctx.lineTo(head.x * gridSize + gridSize - 10, head.y * gridSize + 6);
+  ctx.stroke();
+  
+  const boltX = apple.x * gridSize;
+  const boltY = apple.y * gridSize;
+  
+  ctx.fillStyle = '#FFD700';
+  ctx.strokeStyle = '#FFA500';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(boltX + gridSize/2, boltY + 2);
+  ctx.lineTo(boltX + gridSize - 4, boltY + gridSize/2 - 2);
+  ctx.lineTo(boltX + gridSize/2 + 2, boltY + gridSize/2);
+  ctx.lineTo(boltX + gridSize - 2, boltY + gridSize - 2);
+  ctx.lineTo(boltX + gridSize/2, boltY + gridSize/2 + 2);
+  ctx.lineTo(boltX + 2, boltY + gridSize/2);
+  ctx.lineTo(boltX + gridSize/2, boltY + 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowColor = '#FFD700';
+  ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  
+  particles = particles.filter(particle => {
+    particle.draw(ctx);
+    return !particle.update();
+  });
+
+  requestAnimationFrame(draw);
+}
+
+function placeApple() {
+  apple.x = Math.floor(Math.random() * tileCount);
+  apple.y = Math.floor(Math.random() * tileCount);
+}
+
+function updateScore() {
+  document.getElementById('score').textContent = `Score: ${score}`;
+}
+
+function updateLevel() {
+  document.getElementById('level').textContent = `Level: ${level}`;
+}
+
+function gameOver() {
+  clearInterval(gameLoop);
+  document.getElementById('modal-text').textContent = 
+    `Game Over! Score: ${score}${gameMode === 'campaign' ? ` - Level: ${level}` : ''}`;
+  document.getElementById('modal').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+  startGame(gameMode);
+}
+
+function createTechBackground() {
+  const container = document.getElementById('tech-background');
+  container.innerHTML = '';
+  
+  for(let i = 0; i < 15; i++) {
+    const hLine = document.createElement('div');
+    hLine.className = 'grid-line horizontal-line';
+    hLine.style.top = `${i * 7}%`;
+    hLine.style.animationDelay = `${i * 0.3}s`;
+    container.appendChild(hLine);
+    
+    const vLine = document.createElement('div');
+    vLine.className = 'grid-line vertical-line';
+    vLine.style.left = `${i * 7}%`;
+    vLine.style.animationDelay = `${i * 0.2}s`;
+    container.appendChild(vLine);
+  }
+
+  window.circuitNodes = [];
+  window.circuitPaths = [];
+  
+  for(let i = 0; i < 40; i++) {
+    const node = document.createElement('div');
+    node.className = 'circuit-node';
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    node.style.left = `${x}%`;
+    node.style.top = `${y}%`;
+    container.appendChild(node);
+    window.circuitNodes.push(node);
+
+    if (i > 0) {
+      const path = document.createElement('div');
+      path.className = 'circuit-path';
+      path.style.width = `${Math.random() * 100 + 50}px`;
+      path.style.left = `${x}%`;
+      path.style.top = `${y}%`;
+      path.style.transform = `rotate(${Math.random() * 360}deg)`;
+      container.appendChild(path);
+      window.circuitPaths.push(path);
+    }
+  }
+
+  setInterval(createDataStream, 300);
+}
+
+function createDataStream() {
+  const stream = document.createElement('div');
+  stream.className = 'data-stream';
+  stream.style.left = `${Math.random() * 100}%`;
+  stream.style.top = '0';
+  stream.textContent = Array(20).fill(0)
+    .map(() => Math.random() > 0.5 ? '1' : '0')
+    .join('');
+  document.getElementById('tech-background').appendChild(stream);
+  stream.addEventListener('animationend', () => stream.remove());
+}
+
+createTechBackground();
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    togglePause();
+    return;
+  }
+  
+  if (isPaused) return;
+  
+  switch(e.key) {
+    case 'ArrowUp':
+      if (dy === 1) return;
+      dx = 0;
+      dy = -1;
+      break;
+    case 'ArrowDown':
+      if (dy === -1) return;
+      dx = 0;
+      dy = 1;
+      break;
+    case 'ArrowLeft':
+      if (dx === 1) return;
+      dx = -1;
+      dy = 0;
+      break;
+    case 'ArrowRight':
+      if (dx === -1) return;
+      dx = 1;
+      dy = 0;
+      break;
+  }
+});
+
+document.getElementById('game-container').style.display = 'none';
+document.querySelector('.game-wrapper').style.display = 'none';
+
+function hideStartScreen() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'block';
+  document.querySelector('.game-wrapper').style.display = 'flex';
+  startGame(gameMode);
+}
+</script>
+</body>
+</html>
